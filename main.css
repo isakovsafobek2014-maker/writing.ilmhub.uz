@@ -1,0 +1,166 @@
+/* ==========================================
+   1. GLOBAL STYLES & TEMA O'ZGARUVCHILARI
+   ========================================== */
+:root {
+    /* Light Mode (Kunduzgi rejim) */
+    --bg-main: #f4f6f9;
+    --bg-card: #ffffff;
+    --text-primary: #2d3436;
+    --text-secondary: #636e72;
+    --border-color: #e2e8f0;
+    --topbar-bg: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    --card-hover-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] {
+    /* Dark Mode (Tungi rejim - IlmHub stilida) */
+    --bg-main: #090d16;
+    --bg-card: #131b2e;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: #1e293b;
+    --topbar-bg: linear-gradient(135deg, #0f172a, #1e293b);
+    --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    --card-hover-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ==========================================
+   2. TOP BAR & NAVIGATION
+   ========================================== */
+.top-bar {
+    background: var(--topbar-bg);
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Mode almashtirish tugmasi stili */
+.theme-toggle-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* ==========================================
+   3. ASOSIY KONTEYNER VA KARTALAR
+   ========================================== */
+.container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.login-cards-grid {
+    text-align: center;
+}
+
+.login-cards-grid h2 {
+    margin-bottom: 30px;
+    color: var(--text-primary);
+}
+
+.cards-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.login-card {
+    background: var(--bg-card);
+    padding: 30px 20px;
+    border-radius: 15px;
+    box-shadow: var(--card-shadow);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+}
+
+.login-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-hover-shadow);
+}
+
+.card-icon {
+    font-size: 45px;
+    margin-bottom: 15px;
+}
+
+/* Kartalar pastki chegarasi ranglari */
+.dev-card { border-bottom: 5px solid #fdcb6e; }
+.staff-card { border-bottom: 5px solid #0984e3; }
+.student-card { border-bottom: 5px solid #00b894; }
+.guest-card { border-bottom: 5px solid #b2bec3; }
+
+/* ==========================================
+   4. LOGIN MODALLAR QISMI (DARK MODE MOS)
+   ========================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-box {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 30px;
+    border-radius: 16px;
+    width: 320px;
+    box-shadow: var(--card-hover-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.modal-box input {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-primary);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+    outline: none;
+    font-size: 14px;
+}
+
+.modal-box input:focus {
+    border-color: #2563eb;
+}

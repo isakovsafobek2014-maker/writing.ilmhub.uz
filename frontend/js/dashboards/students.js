@@ -1,0 +1,327 @@
+// O'quvchi shaxsiy xonasi va mashqlar bo'limi
+
+const StudentDashboard = {
+  activeTab: "reading",
+  readingStep: 0,
+  listeningStep: 0,
+
+  currentReadingItem: null,
+  currentListeningItem: null,
+  currentWritingPrompt: null,
+  currentSpeakingItem: null,
+
+  init(studentData) {
+    this.student = studentData || JSON.parse(localStorage.getItem("currentUser")) || { name: "O'quvchi", xp: 0 };
+    this.render();
+  },
+
+  render() {
+    const container = document.getElementById("app-container");
+    if (!container) return;
+
+    const currentUser = JSON.parse(localStorage.getItem("currentUser")) || this.student;
+
+    container.innerHTML = `
+      <div style="max-width: 1000px; margin: 20px auto; font-family: sans-serif; color: #1e293b;">
+        
+        <!-- Yuqori panel -->
+        <div style="background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            ${typeof LogoComponent !== 'undefined' ? LogoComponent.render(40, false) : ''}
+            <div>
+              <h2 style="margin: 0; font-size: 22px;">🎓 Salom, ${currentUser.name || 'O\'quvchi'}!</h2>
+              <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Bugungi ingliz tili darslarini bajarishga tayyormisiz?</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div id="student-xp-display" style="background: #fef3c7; color: #d97706; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 16px;">
+              ⭐ ${currentUser.xp || 0} XP
+            </div>
+            <button onclick="localStorage.removeItem('currentUser'); location.reload();" style="background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: bold;">
+              🚪 Chiqish
+            </button>
+          </div>
+        </div>
+
+        <!-- Bo'limlar menyusi -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+          <button onclick="StudentDashboard.switchTab('reading')" style="${this.getTabStyle('reading')}">📖 Mutolaa (Reading)</button>
+          <button onclick="StudentDashboard.switchTab('speaking')" style="${this.getTabStyle('speaking')}">🎙️ So'zlashuv (Speaking)</button>
+          <button onclick="StudentDashboard.switchTab('writing')" style="${this.getTabStyle('writing')}">✍️ Yozish (Writing)</button>
+          <button onclick="StudentDashboard.switchTab('listening')" style="${this.getTabStyle('listening')}">🎧 Tinglash (Listening)</button>
+          <button onclick="StudentDashboard.switchTab('leaderboard')" style="${this.getTabStyle('leaderboard')}">🏆 Reyting</button>
+          <button onclick="StudentDashboard.switchTab('messages')" style="${this.getTabStyle('messages')}">💬 Xabarlar</button>
+        </div>
+
+        <!-- Asosiy ishchi maydon -->
+        <div id="student-tab-content"></div>
+
+      </div>
+    `;
+
+    this.renderTabContent();
+  },
+
+  getTabStyle(tabName) {
+    const isActive = this.activeTab === tabName;
+    return `
+      flex: 1; min-width: 140px; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+      background: ${isActive ? '#2563eb' : 'white'};
+      color: ${isActive ? 'white' : '#64748b'};
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    `;
+  },
+
+  switchTab(tabName) {
+    this.activeTab = tabName;
+    this.render();
+  },
+
+  // Mutolaa bo'limi javobini tekshirish
+  checkReadingAnswer(selectedIndex) {
+    const q = this.currentReadingItem;
+    if (q.options[selectedIndex]?.correct) {
+      StudentGivedXP.addXP(10);
+      if (typeof AntiCheat !== 'undefined') AntiCheat.logExercise('reading');
+      this.currentReadingItem = null; // yangisi keyingi render'da tanlanadi
+      this.renderTabContent();
+    } else {
+      StudentGivedXP.removeXP(10); // Xato bo'lsa -10 XP ayriladi
+    }
+  },
+
+  speakCurrentSentence() {
+    if (this.currentSpeakingItem) {
+      StudentGivedXP.speakText(this.currentSpeakingItem.sentence);
+    }
+  },
+
+  playListeningAudio() {
+    if (this.currentListeningItem) {
+      StudentGivedXP.speakText(this.currentListeningItem.audioText);
+    }
+  },
+
+  checkListeningAnswer() {
+    const answerInput = document.getElementById("listening-result-input");
+    const answer = answerInput?.value.trim().toLowerCase();
+    if (!answer) {
+      alert("Iltimos, javobingizni kiriting!");
+      return;
+    }
+
+    const expected = this.currentListeningItem?.answerContains?.trim().toLowerCase();
+    if (!expected) {
+      alert("Bu tinglash topshirig'ida javob kaliti topilmadi.");
+      return;
+    }
+
+    if (answer.includes(expected)) {
+      StudentGivedXP.addXP(10);
+      if (typeof AntiCheat !== 'undefined') AntiCheat.logExercise('listening');
+      this.currentListeningItem = null;
+      this.renderTabContent();
+    } else {
+      StudentGivedXP.removeXP(10); // Xato bo'lsa -10 XP ayriladi
+      alert("Javob noto'g'ri. Audioni qayta tinglab urinib ko'ring.");
+    }
+  },
+
+  async renderTabContent() {
+    const content = document.getElementById("student-tab-content");
+    if (!content) return;
+    const currentUser = JSON.parse(localStorage.getItem("currentUser")) || this.student;
+    const activeTab = this.activeTab;
+
+    // 1. READING
+    if (this.activeTab === "reading") {
+      if (!this.currentReadingItem) {
+        content.innerHTML = "<p>Reading topshirig'i yuklanmoqda...</p>";
+        this.currentReadingItem = (typeof ContentBank !== 'undefined')
+          ? await ContentBank.getReadingItem(currentUser)
+          : {
+              title: "The Smart Little Dog",
+              text: "Max is a small brown dog. He lives with his best friend, Tim.",
+              question: "What did Max find in the garden?",
+              options: [{ t: "A blue ball", correct: true }, { t: "A newspaper", correct: false }]
+            };
+      }
+      if (this.activeTab !== activeTab || document.getElementById("student-tab-content") !== content) return;
+      const q = this.currentReadingItem;
+      content.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3>📖 Matnni o'qing va javob bering</h3>
+          <p style="background: #f8fafc; padding: 15px; border-radius: 8px; line-height: 1.6; font-size: 16px;">
+            <strong>${q.title}</strong><br>${q.text}
+          </p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;" />
+          <p style="font-size: 16px;"><strong>Savol: ${q.question}</strong></p>
+          <div style="display: grid; gap: 8px;">
+            ${q.options.map((option, index) => `
+              <button onclick="StudentDashboard.checkReadingAnswer(${index})" style="padding: 10px 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: bold; text-align: left; cursor: pointer;">
+                ${String.fromCharCode(65 + index)}) ${option.t}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } 
+    
+    // 2. SPEAKING
+    else if (this.activeTab === "speaking") {
+      if (!this.currentSpeakingItem) {
+        content.innerHTML = "<p>Speaking topshirig'i yuklanmoqda...</p>";
+        this.currentSpeakingItem = (typeof ContentBank !== 'undefined')
+          ? await ContentBank.getSpeakingItem(currentUser)
+          : { sentence: "I love learning English with AI!" };
+      }
+      if (this.activeTab !== activeTab || document.getElementById("student-tab-content") !== content) return;
+      const speakSentence = this.currentSpeakingItem.sentence;
+      content.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3>🎙️ Ovozli talaffuz mashqi</h3>
+          <p style="font-size: 15px;">Pastdagi gapni eshiting va mikrofonga aytib bering:</p>
+          
+          <div style="background: #eff6ff; padding: 15px; border-radius: 8px; color: #1e40af; font-size: 18px; font-weight: bold; margin-bottom: 15px;">
+            "${speakSentence}"
+          </div>
+          
+          <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button onclick="StudentDashboard.speakCurrentSentence()" style="padding: 11px 18px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+              🔊 To'g'ri talaffuzni eshitish
+            </button>
+            <button onclick="StudentGivedXP.startVoiceInput('speaking-result-input')" style="padding: 11px 18px; background: #dc2626; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+              🎙️ Gapirishni boshlash
+            </button>
+          </div>
+
+          <input id="speaking-result-input" placeholder="Siz aytgan gap bu yerda ko'rinadi..." style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;" />
+          
+          <button onclick="
+            const val = document.getElementById('speaking-result-input').value.trim();
+            if(!val) {
+              StudentGivedXP.removeXP(10);
+            } else {
+              StudentGivedXP.addXP(10);
+              if (typeof AntiCheat !== 'undefined') AntiCheat.logExercise('speaking');
+              StudentDashboard.currentSpeakingItem = null;
+              document.getElementById('speaking-result-input').value = '';
+              StudentDashboard.renderTabContent();
+            }
+          " style="padding: 11px 25px; background: #16a34a; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            ✅ Topshirish (+10 XP)
+          </button>
+        </div>
+      `;
+    } 
+
+    // 3. WRITING
+    else if (this.activeTab === "writing") {
+      if (!this.currentWritingPrompt) {
+        content.innerHTML = "<p>Writing topshirig'i yuklanmoqda...</p>";
+        this.currentWritingPrompt = (typeof ContentBank !== 'undefined')
+          ? await ContentBank.getWritingItem(currentUser)
+          : { prompt: "Describe your favorite hobby and why you like it." };
+      }
+      if (this.activeTab !== activeTab || document.getElementById("student-tab-content") !== content) return;
+      const writingPrompt = this.currentWritingPrompt?.prompt || "Describe your favorite hobby and why you like it.";
+      content.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3>✍️ Insho va Yozish mashqi</h3>
+          <p style="font-size: 15px; font-weight: bold; color: #334155;">Mavzu: "${writingPrompt}"</p>
+
+          <textarea 
+            id="writing-text-input" 
+            rows="5" 
+            placeholder="Javobingizni shu yerga yozing yoki mikrofondan foydalaning..." 
+            style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: sans-serif; box-sizing: border-box; margin-bottom: 15px;"
+          ></textarea>
+
+          <div style="display: flex; justify-content: space-between;">
+            <button onclick="StudentGivedXP.startVoiceInput('writing-text-input')" style="padding: 11px 18px; background: #4f46e5; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+              🎙️ Mikrofondan aytib yozish
+            </button>
+            <button onclick="
+              const val = document.getElementById('writing-text-input').value.trim();
+              if(!val) {
+                StudentGivedXP.removeXP(10);
+              } else {
+                StudentGivedXP.addXP(15);
+                if (typeof AntiCheat !== 'undefined') AntiCheat.logExercise('writing');
+                StudentDashboard.currentWritingPrompt = null;
+                document.getElementById('writing-text-input').value = '';
+                StudentDashboard.renderTabContent();
+              }
+            " style="padding: 11px 25px; background: #16a34a; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+              🚀 Topshirish (+15 XP)
+            </button>
+          </div>
+        </div>
+      `;
+    } 
+
+    // 4. LISTENING
+    else if (this.activeTab === "listening") {
+      if (!this.currentListeningItem) {
+        content.innerHTML = "<p>Listening topshirig'i yuklanmoqda...</p>";
+        this.currentListeningItem = (typeof ContentBank !== 'undefined')
+          ? await ContentBank.getListeningItem(currentUser)
+          : { audioText: "The quick brown fox jumps over the lazy dog.", question: "Which animal jumped?", answerContains: "fox" };
+      }
+      if (this.activeTab !== activeTab || document.getElementById("student-tab-content") !== content) return;
+      const q = this.currentListeningItem;
+      content.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3>🎧 Tinglab tushunish</h3>
+          <p style="font-size: 15px;">Tugmani bosib audioni eshiting va savolga javob bering:</p>
+          
+          <button onclick="StudentDashboard.playListeningAudio()" style="padding: 12px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 20px;">
+            🔊 Audioni eshitish
+          </button>
+          
+          <p style="font-size: 16px;"><strong>${q.question}</strong></p>
+          
+          <input id="listening-result-input" placeholder="Eshitgan javobingizni yozing..." style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 10px 0 15px; box-sizing: border-box;" />
+          <button onclick="StudentDashboard.checkListeningAnswer()" style="padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            ✅ Tekshirish (+10 XP)
+          </button>
+        </div>
+      `;
+    } 
+
+    // 5. REYTING
+    else if (this.activeTab === "leaderboard") {
+      const students = JSON.parse(localStorage.getItem("ilmhub_students") || "[]");
+      students.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+
+      content.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3>🏆 O'quvchilar Reytingi</h3>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            ${students.length === 0 ? '<p>Reyting hali shakllanmagan.</p>' : students.map((s, idx) => `
+              <div style="display: flex; justify-content: space-between; padding: 12px 16px; background: ${idx === 0 ? '#fef3c7' : '#f8fafc'}; border-radius: 8px; border: 1px solid ${idx === 0 ? '#fde68a' : '#e2e8f0'};">
+                <span>${idx === 0 ? '👑 1' : idx + 1}. 👤 ${s.name} (${s.group || 'Guruhsiz'})</span>
+                <span style="color: #d97706; font-weight: bold;">⭐ ${s.xp || 0} XP</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // 6. XABARLAR (Messages)
+    else if (this.activeTab === "messages") {
+      if (typeof StudentMessages !== 'undefined') {
+        StudentMessages.init(currentUser, "student-tab-content");
+      } else {
+        content.innerHTML = `
+          <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3>💬 Xabarlar</h3>
+            <p style="color:#94a3b8;">Messages moduli hali ulanmagan (js/student-modules/messages.js kerak).</p>
+          </div>
+        `;
+      }
+    }
+  }
+};
+window.StudentDashboard = StudentDashboard;
